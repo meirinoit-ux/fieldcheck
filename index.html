@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <meta name="theme-color" content="#f4f6f3"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+  <title>FieldCheck</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    body { margin: 0; padding: 0; background: #f4f6f3; }
+    #root { min-height: 100dvh; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel" data-presets="react">
+import { useState, useEffect, useRef } from "react";
+
+const C = {
+  bg: "#f4f6f3", surface: "#ffffff", card: "#ffffff", border: "#dde5d8",
+  accent: "#e07b1a", green: "#2d7a3a", red: "#d94f3d", blue: "#2d7a3a", purple: "#5e7a5e",
+  textPrimary: "#1a2e1a", textSecondary: "#4a644a", textMuted: "#8aaa8a",
+};
+
+const GS = `
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@300;400;500&display=swap');
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{background:${C.bg};color:${C.textPrimary};font-family:'Inter',sans-serif;font-size:15px;min-height:100dvh;-webkit-tap-highlight-color:transparent}
+  input,textarea,select{font-family:inherit;font-size:inherit;color:inherit;background:transparent;border:none;outline:none;resize:none}
+  button{cursor:pointer;border:none;background:none;font-family:inherit}
+  ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:${C.border};border-radius:4px}
+  .card-shadow{box-shadow:0 1px 4px rgba(0,0,0,0.08), 0 0 0 1px rgba(45,122,58,0.08)}.fi{animation:fi .25s ease forwards}@keyframes fi{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+  .sp{animation:sp 1s linear infinite}@keyframes sp{to{transform:rotate(360deg)}}
+  .pu{animation:pu 2s ease-in-out infinite}@keyframes pu{0%,100%{opacity:1}50%{opacity:.5}}
+  select option{background:#ffffff;color:#1a2e1a}
+`;
+
+// ── placeholder contractors – will be replaced when user provides list ──
+const DEFAULT_CONTRACTORS = [
+  "— בחר קבלן —",
+  "א.ד.ש דניאל פינוי פסולת בע\"מ",
+  "א.ל.ה.א מיחזור הגליל בע\"מ",
+  "א.ל.ח.נ.י. בע\"מ",
+  "א.מ. עסקים - אלבז מאיר בע\"מ",
+  "א.ניר פינוי פסולת בע\"מ",
+  "א.ס עדן מתכות בע\"מ",
+  "אולטרייד מחזור בע\"מ",
+  "אינפיניה מיחזור בע\"מ",
+  "אלון יעקב הובלות בע\"מ",
+  "אלמנט הנדסת סביבה בע\"מ",
+  "אסי דהן מיחזור מתכות בע\"מ",
+  "אפיק אר.טי.אס בע\"מ",
+  "אקו וי פתרונות מחזור",
+  "אקו פט בע\"מ",
+  "ארגמן איכות הסביבה בע\"מ",
+  "אריק סבן מורשה מתכות בע\"מ",
+  "ב. רפי אריזות בע\"מ",
+  "בוכמן פדר אריזות בע\"מ",
+  "בזמור דלתא בע\"מ",
+  "בני הלייל סחר מתכות בע\"מ",
+  "גדות מסופים לכימיקלים (1985) בע\"מ",
+  "גל מיחזור בע\"מ",
+  "ד.בשן מיחזור בע\"מ",
+  "דוד נחום שינוע ותברואה בע\"מ",
+  "ויסמן-פרידמן פיתוח תעשיה בע\"מ",
+  "חן המקום בע\"מ",
+  "טביב-איכות לסביבה בע\"מ",
+  "י.ר.א.ב שרותי נוי 1985 בע\"מ",
+  "ירוק חברתי בע\"מ",
+  "כ.ה. פינוי ומיחזור (1998 (2000 בע\"מ",
+  "כרמל אקו בע\"מ (וי.פי.אם)",
+  "מובילק בע\"מ",
+  "מיחזור עולם בע\"מ",
+  "מירובן אקולוגיה בע\"מ",
+  "ממשל חומרים סחר (תשנ\"ג) בע\"מ",
+  "מנג סחר בע\"מ",
+  "משה שלי מתכות בע\"מ",
+  "משטחי מנדא בע\"מ",
+  "נגב אקולוגיה-אגודה שיתופית חקלאית בע\"מ",
+  "נופים איסוף ומחזור פסולת בניין ותעשייה בע\"מ",
+  "סבן אריה",
+  "סופר פייפ בע\"מ",
+  "סטוק דיל בע\"מ",
+  "סייב איט יזמות סביבתית בע\"מ",
+  "ספיידר איסוף ומיחזור",
+  "ע.ש. משטחים 2010 בע\"מ",
+  "עומבר הנדסה וסחר בע\"מ",
+  "עלה שרותי אקולוגיה בע\"מ",
+  "עמיאש מפעל לקליטה,מיון ופינוי פסולת למיחזור בע\"מ",
+  "פחמס אריזות בע\"מ",
+  "פינוי אוזן בע\"מ",
+  "פלסטי סיטי תעשיות בע\"מ",
+  "פסגות בסביבה ירוקה בע\"מ (לשעבר דניאלי בסביבה בעמ)",
+  "פרץ מתכות בעמ",
+  "צבי כהן אקולוגיה בע\"מ",
+  "ק.מ.מ מפעלי מחזור בע\"מ",
+  "קבוצת טלאור כראדי בע\"מ",
+  "קבוצת י.ע. ויד רם לאיכות הסביבה בישראל 2005 בע\"מ",
+  "קובי מיחזור טק בע\"מ",
+  "רימון תעשיות מיחזור בע\"מ",
+  "רמנוע שירותים מוניציפליים בע\"מ",
+  "רסייקום 2009 בע\"מ",
+  "שאול גואטה בע\"מ",
+  "שחף - אלון תבור בע\"מ",
+  "שחר תשלובות בע\"מ",
+  "שרון דן השקעות בע\"מ",
+];
+const DEFAULT_USERS = ["זיו", "נואית"];
+const FILENAME = "site-inspector-data.json";
+
+const fmtDate = d => new Date(d).toLocaleDateString("he-IL",{day:"2-digit",month:"2-digit",year:"numeric"});
+const fmtTime = d => new Date(d).toLocaleTimeString("he-IL",{hour:"2-digit",minute:"2-digit"});
+const uid = () => Math.random().toString(36).slice(2,10);
+const ts = () => new Date().toISOString();
+
+const makeChecklist = () => ({
+  truckScale:  { status: null },
+  unregWaste:  { found: null, note: "" },
+  compactor:   { works: null, count: "", note: "" },
+  crusher:     { works: null, count: "", note: "" },
+  washLine:    { works: null, count: "", note: "" },
+  sorters:     { count: "" },
+});
+
+// ── Drive ──
+async function loadFromDrive() {
+  try {
+    const r = await fetch("https://api.anthropic.com/v1/messages",{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        model:"claude-sonnet-4-20250514",max_tokens:8000,
+        mcp_servers:[{type:"url",url:"https://drivemcp.googleapis.com/mcp/v1",name:"gdrive"}],
+        messages:[{role:"user",content:`Search Google Drive for file "${FILENAME}". If found return ONLY its text content. If not found return NOT_FOUND.`}]
+      })
+    });
+    const d = await r.json();
+    const txt = d.content?.filter(b=>b.type==="text").map(b=>b.text).join("")||"";
+    if(txt.includes("NOT_FOUND"))return null;
+    const m = txt.match(/\{[\s\S]*\}/);
+    return m ? JSON.parse(m[0]) : null;
+  } catch{return null;}
+}
+async function saveToDrive(data) {
+  try {
+    await fetch("https://api.anthropic.com/v1/messages",{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        model:"claude-sonnet-4-20250514",max_tokens:500,
+        mcp_servers:[{type:"url",url:"https://drivemcp.googleapis.com/mcp/v1",name:"gdrive"}],
+        messages:[{role:"user",content:`In Google Drive find or create "${FILENAME}" and set its content to: ${JSON.stringify(data)}`}]
+      })
+    });
+    return true;
+  } catch{return false;}
+}
+
+// ── Icons ──
+const Ic = ({n,s=20,c="currentColor"})=>{
+  const m={
+    plus:<svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+    check:<svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
+    trash:<svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>,
+    camera:<svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>,
+    truck:<svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 5v4h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>,
+    note:<svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>,
+    back:<svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>,
+    cloud:<svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>,
+    pin:<svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>,
+    user:<svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+    list:<svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>,
+    x:<svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+    mail:<svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>,<path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+  };
+  return m[n]||null;
+};
+
+// ── Small shared ──
+const iS = (extra={}) => ({width:"100%",background:C.card,border:`1px solid ${C.border}`,borderRadius:10,padding:"10px 14px",color:C.textPrimary,fontSize:14,direction:"rtl",...extra});
+
+function Lbl({children}){
+  return <div style={{fontSize:11,fontFamily:"'IBM Plex Mono',monospace",color:C.textMuted,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>{children}</div>;
+}
+function F({label,children,mt=14}){
+  return <div style={{marginBottom:mt}}><Lbl>{label}</Lbl>{children}</div>;
+}
+function Badge({children,color=C.accent}){
+  return <span style={{background:color+"22",color,fontSize:11,fontFamily:"'IBM Plex Mono',monospace",padding:"2px 8px",borderRadius:4,fontWeight:500,letterSpacing:.5}}>{children}</span>;
+}
+function Empty({icon,text}){
+  return <div style={{textAlign:"center",padding:"48px 20px",color:C.textMuted}}><Ic n={icon} s={36} c={C.textMuted}/><div style={{marginTop:12,fontSize:14}}>{text}</div></div>;
+}
+function Btn({children,onClick,v="ghost",icon,full,sx={},disabled}){
+  const vs={primary:{background:C.accent,color:"#fff",fontWeight:600},ghost:{background:C.surface,color:C.textPrimary,border:`1px solid ${C.border}`},danger:{background:C.red+"22",color:C.red,border:`1px solid ${C.red}44`}};
+  return <button onClick={onClick} disabled={disabled} style={{display:"flex",alignItems:"center",gap:8,justifyContent:"center",padding:"10px 16px",borderRadius:10,fontSize:14,fontWeight:500,width:full?"100%":undefined,opacity:disabled?.5:1,...vs[v],...sx}}>{icon&&<Ic n={icon} s={16}/>}{children}</button>;
+}
+
+// ── CheckCard ──
+function CheckCard({title,icon,children}){
+  return(
+    <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:"12px 14px",marginBottom:12}}>
+      <div style={{display:"flex",alignItems:"center",gap:8}}><Ic n={icon} s={15} c={C.accent}/><span style={{fontWeight:600,fontSize:14,color:C.textPrimary}}>{title}</span></div>
+      {children}
+    </div>
+  );
+}
+function TriBtn({val,onChange,opts}){
+  return(
+    <div style={{display:"flex",gap:6,marginTop:8}}>
+      {opts.map(o=>(
+        <button key={o.v} onClick={()=>onChange(o.v)}
+          style={{flex:1,padding:"8px 4px",borderRadius:9,fontSize:12,fontWeight:600,border:"1px solid",
+            borderColor:val===o.v?o.c:C.border,color:val===o.v?o.c:C.textMuted,
+            background:val===o.v?o.c+"22":"transparent"}}>
+          {o.l}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ── UserPicker ──
+function UserPicker({users,onSelect,onManage}){
+  return(
+    <div style={{minHeight:"100dvh",background:C.bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:28}}>
+      <div style={{fontFamily:"'Syne',sans-serif",fontSize:32,fontWeight:800,marginBottom:6,textAlign:"center"}}><span style={{color:C.green}}>Field</span><span style={{color:C.accent}}>Check</span></div>
+      <div style={{color:C.textMuted,fontSize:14,marginBottom:32,textAlign:"center"}}>מי מבצע/ת את הביקור היום?</div>
+      <div style={{width:"100%",maxWidth:340,display:"flex",flexDirection:"column",gap:10}}>
+        {users.map(u=>(
+          <button key={u} onClick={()=>onSelect(u)}
+            style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:"13px 18px",fontSize:16,fontWeight:600,color:C.textPrimary,display:"flex",alignItems:"center",gap:12,direction:"rtl"}}>
+            <div style={{width:38,height:38,borderRadius:"50%",background:C.accent+"22",border:`2px solid ${C.accent}55`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,fontWeight:800,color:C.accent,flexShrink:0}}>{u[0]}</div>
+            {u}
+          </button>
+        ))}
+        <button onClick={onManage} style={{marginTop:8,color:C.textMuted,fontSize:13,display:"flex",alignItems:"center",justifyContent:"center",gap:6,padding:8}}>
+          <Ic n="gear" s={14} c={C.textMuted}/> ניהול משתמשים
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── ManageUsers ──
+function ManageUsers({users,onSave,onBack}){
+  const [list,setList]=useState([...users]);
+  const [nm,setNm]=useState("");
+  const add=()=>{if(nm.trim()){setList(l=>[...l,nm.trim()]);setNm("");}};
+  return(
+    <div style={{minHeight:"100dvh",background:C.bg}}>
+      <div style={{background:C.surface,borderBottom:`1px solid ${C.border}`,padding:"12px 16px",display:"flex",alignItems:"center",gap:12}}>
+        <button onClick={onBack} style={{color:C.textSecondary,padding:4}}><Ic n="back" s={22}/></button>
+        <span style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:18}}>ניהול משתמשים</span>
+      </div>
+      <div style={{padding:16,direction:"rtl"}}>
+        <div style={{display:"flex",gap:8,marginBottom:14}}>
+          <input value={nm} onChange={e=>setNm(e.target.value)} onKeyDown={e=>e.key==="Enter"&&add()} placeholder="שם משתמש/ת חדש/ה" style={iS({flex:1})} dir="rtl"/>
+          <button onClick={add} style={{background:C.accent,color:"#fff",borderRadius:10,padding:"10px 14px"}}><Ic n="plus" s={18}/></button>
+        </div>
+        {list.map((u,i)=>(
+          <div key={i} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:"11px 14px",marginBottom:8,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <div style={{width:32,height:32,borderRadius:"50%",background:C.accent+"22",border:`2px solid ${C.accent}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:800,color:C.accent}}>{u[0]}</div>
+              <span style={{fontSize:15,fontWeight:500}}>{u}</span>
+            </div>
+            <button onClick={()=>setList(l=>l.filter((_,j)=>j!==i))} style={{color:C.textMuted}}><Ic n="x" s={16}/></button>
+          </div>
+        ))}
+        <Btn full v="primary" onClick={()=>onSave(list)} sx={{marginTop:16}}>שמור רשימת משתמשים</Btn>
+      </div>
+    </div>
+  );
+}
+
+// ── VisitList ──
+function VisitList({visits,currentUser,onOpen,onNew,onSwitch,saving}){
+  const grouped=visits.reduce((acc,v)=>{
+    const k=new Date(v.createdAt).toLocaleDateString("he-IL",{day:"2-digit",month:"long",year:"numeric"});
+    if(!acc[k])acc[k]=[];acc[k].push(v);return acc;
+  },{});
+  return(
+    <div style={{minHeight:"100dvh",background:C.bg}}>
+      <div style={{background:C.surface,borderBottom:`1px solid ${C.border}`,padding:"14px 18px",position:"sticky",top:0,zIndex:10}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <div>
+            <div style={{fontFamily:"'Syne',sans-serif",fontSize:21,fontWeight:800,color:C.green,letterSpacing:-.5}}>Field<span style={{color:C.accent}}>Check</span></div>
+            <button onClick={onSwitch} style={{display:"flex",alignItems:"center",gap:5,marginTop:3,color:C.accent,fontSize:12,fontWeight:600}}>
+              <Ic n="user" s={13} c={C.accent}/>{currentUser}
+            </button>
+          </div>
+          <div style={{display:"flex",gap:10,alignItems:"center"}}>
+            {saving&&<div className="pu" style={{display:"flex",gap:5,alignItems:"center",fontSize:11,color:C.textMuted}}><Ic n="cloud" s={13} c={C.textMuted}/>שומר...</div>}
+            <button onClick={onNew} style={{background:C.accent,color:"#fff",borderRadius:12,width:44,height:44,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 4px 20px ${C.accent}40`}}>
+              <Ic n="plus" s={22}/>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div style={{padding:"14px 14px 100px"}}>
+        {visits.length===0?(
+          <div style={{textAlign:"center",padding:"80px 20px",color:C.textMuted}}>
+            <Ic n="pin" s={48} c={C.textMuted}/>
+            <div style={{fontFamily:"'Syne',sans-serif",fontSize:18,fontWeight:700,marginTop:16,color:C.textSecondary}}>אין ביקורים עדיין</div>
+            <div style={{fontSize:13,marginTop:8}}>לחצי + כדי להתחיל</div>
+          </div>
+        ):Object.entries(grouped).sort((a,b)=>b[0]<a[0]?-1:1).map(([date,dv])=>(
+          <div key={date} className="fi">
+            <div style={{fontSize:11,fontFamily:"'IBM Plex Mono',monospace",color:C.textMuted,padding:"14px 4px 6px",letterSpacing:.5}}>{date}</div>
+            {dv.map(v=><VCard key={v.id} visit={v} onClick={()=>onOpen(v.id)}/>)}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function VCard({visit,onClick}){
+  const cl=visit.checklist||{};
+  const filled=["truckScale","unregWaste","compactor","crusher","washLine","sorters"].filter(k=>{
+    const it=cl[k];if(!it)return false;
+    if(k==="truckScale")return it.status!==null;
+    if(k==="sorters")return it.count!=="";
+    return it.found!==null||it.works!==null;
+  }).length;
+  const doneT=(visit.tasks||[]).filter(t=>t.done).length;
+  return(
+    <div onClick={onClick} className="fi" style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:"13px 15px",marginBottom:9,cursor:"pointer"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+        <div style={{flex:1}}>
+          <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:16,color:C.textPrimary}}>
+            {visit.contractorName||visit.siteName||"אתר ללא שם"}
+          </div>
+          <div style={{fontSize:12,color:C.textMuted,marginTop:2,display:"flex",gap:8}}>
+            <span>{fmtTime(visit.createdAt)}</span>
+            {visit.inspector&&<span style={{color:C.accent}}>· {visit.inspector}</span>}
+          </div>
+        </div>
+        {visit.status&&<Badge color={visit.status==="תקין"?C.green:visit.status==="בעיה קריטית"?C.red:C.accent}>{visit.status}</Badge>}
+      </div>
+      <div style={{display:"flex",gap:12,marginTop:10,flexWrap:"wrap"}}>
+        {(visit.photos||[]).length>0&&<span style={{fontSize:12,color:C.textSecondary,display:"flex",gap:4,alignItems:"center"}}><Ic n="camera" s={13} c={C.textSecondary}/>{visit.photos.length}</span>}
+        {(visit.tasks||[]).length>0&&<span style={{fontSize:12,color:C.textSecondary,display:"flex",gap:4,alignItems:"center"}}><Ic n="check" s={13} c={C.textSecondary}/>{doneT}/{visit.tasks.length}</span>}
+        {filled>0&&<span style={{fontSize:12,color:C.blue,display:"flex",gap:4,alignItems:"center"}}><Ic n="list" s={13} c={C.blue}/>{filled}/6 נבדק</span>}
+        {visit.metWith&&<span style={{fontSize:12,color:C.purple,display:"flex",gap:4,alignItems:"center"}}><Ic n="user" s={13} c={C.purple}/>פגשנו: {visit.metWith}</span>}
+      </div>
+    </div>
+  );
+}
+
+// ── Email report builder ──
+function statusLabel(v){ return v===null||v===undefined?"לא נבדק":v; }
+function worksLabel(v){ return v==="works"?"✓ עובד":v==="broken"?"✗ לא עובד":v==="na"?"לא קיים":"לא נבדק"; }
+
+function buildEmailBody(visit){
+  const cl=visit.checklist||{};
+  const fmtD=d=>new Date(d).toLocaleDateString("he-IL",{day:"2-digit",month:"2-digit",year:"numeric"});
+  const fmtT=d=>new Date(d).toLocaleTimeString("he-IL",{hour:"2-digit",minute:"2-digit"});
+
+  const lines=[];
+  lines.push(`דוח ביקור אתר`);
+  lines.push(`=====================================`);
+  lines.push(`תאריך: ${fmtD(visit.createdAt)}  שעה: ${fmtT(visit.createdAt)}`);
+  lines.push(`קבלן: ${visit.contractorName||"לא צוין"}`);
+  lines.push(`מבצע הביקור: ${visit.inspector||"לא צוין"}`);
+  lines.push(`את מי פגשנו: ${visit.metWith||"לא צוין"}`);
+  lines.push(`סטטוס: ${visit.status||"לא הוגדר"}`);
+  if(visit.siteName) lines.push(`תיאור: ${visit.siteName}`);
+
+  lines.push(``);
+  lines.push(`בדיקות שטח`);
+  lines.push(`-------------------------------------`);
+  lines.push(`משקל משאיות: ${cl.truckScale?.status==="works"?"✓ עובד":cl.truckScale?.status==="broken"?"✗ לא עובד":"לא נבדק"}`);
+  lines.push(`פסולת אריזות לא מדווחת: ${cl.unregWaste?.found===true?"אותרה":cl.unregWaste?.found===false?"לא אותרה":"לא נבדק"}${cl.unregWaste?.note?` — ${cl.unregWaste.note}`:""}`);
+  lines.push(`מכבש: ${worksLabel(cl.compactor?.works)}${cl.compactor?.count?`, כמות: ${cl.compactor.count}`:""}${cl.compactor?.note?` — ${cl.compactor.note}`:""}`);
+  lines.push(`מגרסה: ${worksLabel(cl.crusher?.works)}${cl.crusher?.count?`, כמות: ${cl.crusher.count}`:""}${cl.crusher?.note?` — ${cl.crusher.note}`:""}`);
+  lines.push(`קו שטיפה: ${worksLabel(cl.washLine?.works)}${cl.washLine?.count?`, כמות: ${cl.washLine.count}`:""}${cl.washLine?.note?` — ${cl.washLine.note}`:""}`);
+  lines.push(`עובדי מיון בשטח: ${cl.sorters?.count||"לא צוין"}`);
+
+  if(visit.tasks?.length){
+    lines.push(``);
+    lines.push(`משימות`);
+    lines.push(`-------------------------------------`);
+    visit.tasks.forEach(t=>lines.push(`${t.done?"[✓]":"[ ]"} ${t.text}`));
+  }
+
+  if(visit.truckWeights?.length){
+    lines.push(``);
+    lines.push(`שקילות משאיות`);
+    lines.push(`-------------------------------------`);
+    visit.truckWeights.forEach((w,i)=>lines.push(`משאית #${i+1}: ${w.weight} טון  (${fmtT(w.time)})`));
+    const total=visit.truckWeights.reduce((s,w)=>s+parseFloat(w.weight||0),0).toFixed(1);
+    lines.push(`סה"כ: ${total} טון (${visit.truckWeights.length} משאיות)`);
+  }
+
+  if(visit.note){
+    lines.push(``);
+    lines.push(`הערות`);
+    lines.push(`-------------------------------------`);
+    lines.push(visit.note);
+  }
+
+  if(visit.photos?.length){
+    lines.push(``);
+    lines.push(`תמונות`);
+    lines.push(`-------------------------------------`);
+    lines.push(`לביקור זה צורפו ${visit.photos.length} תמונות.`);
+    lines.push(`(התמונות מצורפות כקבצים נפרדים — ראי מטה)`);
+  }
+
+  lines.push(``);
+  lines.push(`=====================================`);
+  lines.push(`נשלח מאפליקציית FieldCheck`);
+
+  return lines.join("\n");
+}
+
+function sendEmail(visit){
+  const fmtD=d=>new Date(d).toLocaleDateString("he-IL",{day:"2-digit",month:"2-digit",year:"numeric"});
+  const subject=encodeURIComponent(`דוח ביקור: ${visit.contractorName||visit.siteName||"אתר"} — ${fmtD(visit.createdAt)}`);
+  const body=encodeURIComponent(buildEmailBody(visit));
+  window.location.href=`mailto:?subject=${subject}&body=${body}`;
+
+  // Download photos as zip-like trigger: open each photo in new tab for saving
+  if(visit.photos?.length){
+    setTimeout(()=>{
+      visit.photos.forEach((ph,i)=>{
+        const a=document.createElement("a");
+        a.href=ph.src;
+        a.download=`תמונה_${i+1}_${visit.contractorName||"ביקור"}.jpg`;
+        a.click();
+      });
+    }, 800);
+  }
+}
+
+// ── ContractorPicker ──
+function ContractorPicker({value, onChange, contractors, onAddContractor}){
+  const [showAdd, setShowAdd] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [search, setSearch] = useState("");
+
+  const list = contractors.filter(c => !c.startsWith("—"));
+  const filtered = search.trim()
+    ? list.filter(c => c.includes(search))
+    : list;
+
+  const handleAdd = () => {
+    const name = newName.trim();
+    if (!name) return;
+    onAddContractor(name);
+    onChange(name);
+    setNewName("");
+    setSearch("");
+    setShowAdd(false);
+  };
+
+  return (
+    <div>
+      {/* Search + current value */}
+      <div style={{position:"relative"}}>
+        <input
+          value={search || value}
+          onChange={e => { setSearch(e.target.value); if(e.target.value==="") onChange(""); }}
+          placeholder="חפש או בחר קבלן..."
+          style={{...iS(), paddingLeft:36}}
+          dir="rtl"
+        />
+        {(search || value) && (
+          <button onClick={()=>{setSearch("");onChange("");}} style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:C.textMuted}}>
+            <Ic n="x" s={15}/>
+          </button>
+        )}
+      </div>
+
+      {/* Dropdown list when searching */}
+      {search.trim() && (
+        <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,marginTop:4,maxHeight:200,overflowY:"auto",boxShadow:"0 4px 16px rgba(0,0,0,0.12)",zIndex:20,position:"relative"}}>
+          {filtered.length===0 ? (
+            <div style={{padding:"10px 14px",fontSize:13,color:C.textMuted}}>לא נמצא קבלן — ניתן להוסיף חדש למטה</div>
+          ) : filtered.map(c=>(
+            <button key={c} onClick={()=>{onChange(c);setSearch("");}}
+              style={{width:"100%",textAlign:"right",padding:"10px 14px",fontSize:14,color:c===value?C.green:C.textPrimary,
+                background:c===value?C.green+"11":"transparent",borderBottom:`1px solid ${C.border}`,display:"block",direction:"rtl"}}>
+              {c===value && <span style={{marginLeft:6,color:C.green}}>✓</span>}
+              {c}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Add new contractor */}
+      {!showAdd ? (
+        <button onClick={()=>setShowAdd(true)}
+          style={{marginTop:8,display:"flex",alignItems:"center",gap:6,fontSize:13,color:C.accent,fontWeight:600}}>
+          <Ic n="plus" s={14} c={C.accent}/> הוסף קבלן חדש לרשימה
+        </button>
+      ) : (
+        <div style={{background:C.green+"0d",border:`1px solid ${C.green}44`,borderRadius:10,padding:12,marginTop:8}}>
+          <div style={{fontSize:12,color:C.green,fontWeight:600,marginBottom:8}}>קבלן חדש — יישמר ברשימה לתמיד</div>
+          <div style={{display:"flex",gap:8}}>
+            <input
+              value={newName}
+              onChange={e=>setNewName(e.target.value)}
+              onKeyDown={e=>e.key==="Enter"&&handleAdd()}
+              placeholder="שם הקבלן..."
+              style={{...iS({flex:1})}}
+              dir="rtl"
+              autoFocus
+            />
+            <button onClick={handleAdd} style={{background:C.green,color:"#fff",borderRadius:8,padding:"8px 12px",fontWeight:600,fontSize:13}}>הוסף</button>
+            <button onClick={()=>{setShowAdd(false);setNewName("");}} style={{color:C.textMuted,padding:"8px 6px"}}><Ic n="x" s={16}/></button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── VisitDetail ──
+function VisitDetail({visit,onChange,onBack,onDelete,contractors,onAddContractor}){
+  const [tab,setTab]=useState("info");
+  const [newTask,setNewTask]=useState("");
+  const [del,setDel]=useState(false);
+  const fileRef=useRef();
+
+  const up=p=>onChange({...visit,...p});
+  const cl=visit.checklist||makeChecklist();
+  const setCL=p=>up({checklist:{...cl,...p}});
+  const patchCL=(k,p)=>setCL({[k]:{...cl[k],...p}});
+
+  const addTask=()=>{if(!newTask.trim())return;up({tasks:[...(visit.tasks||[]),{id:uid(),text:newTask.trim(),done:false}]});setNewTask("");};
+  const addPhoto=e=>{
+    Array.from(e.target.files).forEach(f=>{
+      const r=new FileReader();
+      r.onload=ev=>up({photos:[...(visit.photos||[]),{id:uid(),src:ev.target.result,time:ts()}]});
+      r.readAsDataURL(f);
+    });
+  };
+
+  const TABS=[
+    {id:"info",   label:"כללי",   icon:"pin"},
+    {id:"check",  label:"בדיקות", icon:"list"},
+    {id:"tasks",  label:"משימות", icon:"check"},
+    {id:"photos", label:"תמונות", icon:"camera"},
+    {id:"weight", label:"משאיות",icon:"truck"},
+    {id:"note",   label:"הערות",  icon:"note"},
+  ];
+
+  return(
+    <div style={{minHeight:"100dvh",background:C.bg,paddingBottom:120}}>
+      {/* header */}
+      <div style={{background:C.surface,borderBottom:`1px solid ${C.border}`,padding:"12px 16px",position:"sticky",top:0,zIndex:10}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <button onClick={onBack} style={{color:C.textSecondary,padding:4}}><Ic n="back" s={22}/></button>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:11,color:C.accent,fontFamily:"'IBM Plex Mono',monospace",marginBottom:1}}>{visit.inspector||""}</div>
+            <input value={visit.siteName||""} onChange={e=>up({siteName:e.target.value})} placeholder="תיאור / שם האתר"
+              style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:17,color:C.textPrimary,background:"transparent",width:"100%"}} dir="rtl"/>
+          </div>
+          <div style={{fontSize:11,color:C.textMuted,fontFamily:"'IBM Plex Mono',monospace",whiteSpace:"nowrap"}}>{fmtDate(visit.createdAt)}</div>
+        </div>
+      </div>
+
+      {/* tabs */}
+      <div style={{display:"flex",background:C.surface,borderBottom:`1px solid ${C.border}`,overflowX:"auto"}}>
+        {TABS.map(t=>(
+          <button key={t.id} onClick={()=>setTab(t.id)}
+            style={{flex:1,padding:"10px 4px",fontSize:11,fontWeight:600,display:"flex",flexDirection:"column",alignItems:"center",gap:3,
+              color:tab===t.id?C.accent:C.textMuted,borderBottom:`2px solid ${tab===t.id?C.accent:"transparent"}`,minWidth:52}}>
+            <Ic n={t.icon} s={17} c={tab===t.id?C.accent:C.textMuted}/>{t.label}
+          </button>
+        ))}
+      </div>
+
+      <div style={{padding:16,direction:"rtl"}} className="fi" key={tab}>
+
+        {/* INFO */}
+        {tab==="info"&&(
+          <div>
+            <F label="קבלן">
+              <ContractorPicker
+                value={visit.contractorName||""}
+                onChange={v=>up({contractorName:v})}
+                contractors={contractors}
+                onAddContractor={onAddContractor}
+              />
+            </F>
+            <F label="את מי פגשנו">
+              <input value={visit.metWith||""} onChange={e=>up({metWith:e.target.value})} placeholder="שם הנציג / איש קשר..." style={iS()} dir="rtl"/>
+            </F>
+            <F label="מבצע/ת הביקור">
+              <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,padding:"10px 14px",color:C.accent,fontWeight:600,fontSize:14}}>{visit.inspector}</div>
+            </F>
+            <F label="תאריך ושעה">
+              <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,padding:"10px 14px",color:C.textSecondary,fontSize:14}}>{fmtDate(visit.createdAt)} · {fmtTime(visit.createdAt)}</div>
+            </F>
+            <F label="סטטוס ביקור">
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                {[{l:"תקין",c:C.green},{l:"דורש טיפול",c:C.accent},{l:"בעיה קריטית",c:C.red}].map(s=>(
+                  <button key={s.l} onClick={()=>up({status:s.l})}
+                    style={{padding:"8px 14px",borderRadius:9,fontSize:13,fontWeight:600,border:"1px solid",
+                      borderColor:visit.status===s.l?s.c:C.border,color:visit.status===s.l?s.c:C.textMuted,
+                      background:visit.status===s.l?s.c+"22":"transparent"}}>
+                    {s.l}
+                  </button>
+                ))}
+              </div>
+            </F>
+          </div>
+        )}
+
+        {/* CHECKLIST */}
+        {tab==="check"&&(
+          <div>
+            <div style={{fontSize:13,color:C.textMuted,marginBottom:14,lineHeight:1.5}}>סמני כל פריט לאחר הבדיקה</div>
+
+            {/* truck scale */}
+            <CheckCard title="משקל משאיות" icon="truck">
+              <TriBtn val={cl.truckScale?.status} onChange={v=>patchCL("truckScale",{status:v})}
+                opts={[{v:"works",l:"✓ עובד",c:C.green},{v:"broken",l:"✗ לא עובד",c:C.red}]}/>
+            </CheckCard>
+
+            {/* unregistered waste */}
+            <CheckCard title="פסולת אריזות לא מדווחת" icon="list">
+              <TriBtn val={cl.unregWaste?.found===null?null:cl.unregWaste?.found?"yes":"no"} onChange={v=>patchCL("unregWaste",{found:v==="yes"})}
+                opts={[{v:"yes",l:"אותרה",c:C.red},{v:"no",l:"לא אותרה",c:C.green}]}/>
+              <textarea value={cl.unregWaste?.note||""} onChange={e=>patchCL("unregWaste",{note:e.target.value})}
+                placeholder="פרטים..." style={{...iS(),marginTop:8,minHeight:56,resize:"vertical"}} dir="rtl"/>
+            </CheckCard>
+
+            {/* equipment */}
+            {[{k:"compactor",l:"מכבש"},{k:"crusher",l:"מגרסה"},{k:"washLine",l:"קו שטיפה"}].map(eq=>(
+              <CheckCard key={eq.k} title={eq.l} icon="gear">
+                <TriBtn val={cl[eq.k]?.works} onChange={v=>patchCL(eq.k,{works:v})}
+                  opts={[{v:"works",l:"✓ עובד",c:C.green},{v:"broken",l:"✗ לא עובד",c:C.red},{v:"na",l:"לא קיים",c:C.textMuted}]}/>
+                <input type="number" min="0" value={cl[eq.k]?.count||""} onChange={e=>patchCL(eq.k,{count:e.target.value})}
+                  placeholder="כמות" style={{...iS(),marginTop:8}} dir="ltr"/>
+                <textarea value={cl[eq.k]?.note||""} onChange={e=>patchCL(eq.k,{note:e.target.value})}
+                  placeholder="הערות..." style={{...iS(),marginTop:6,minHeight:52,resize:"vertical"}} dir="rtl"/>
+              </CheckCard>
+            ))}
+
+            {/* sorters */}
+            <CheckCard title="עובדי מיון נראו בשטח" icon="user">
+              <input type="number" min="0" value={cl.sorters?.count||""} onChange={e=>patchCL("sorters",{count:e.target.value})}
+                placeholder="כמות עובדי מיון" style={{...iS({fontSize:18}),marginTop:8}} dir="ltr"/>
+            </CheckCard>
+          </div>
+        )}
+
+        {/* TASKS */}
+        {tab==="tasks"&&(
+          <div>
+            <div style={{display:"flex",gap:8,marginBottom:14}}>
+              <input value={newTask} onChange={e=>setNewTask(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addTask()}
+                placeholder="הוסף משימה..." dir="rtl"
+                style={{flex:1,background:C.card,border:`1px solid ${C.border}`,borderRadius:10,padding:"10px 14px",color:C.textPrimary,fontSize:14}}/>
+              <button onClick={addTask} style={{background:C.accent,color:"#fff",borderRadius:10,padding:"10px 14px"}}><Ic n="plus" s={18}/></button>
+            </div>
+            {!(visit.tasks?.length)?<Empty icon="check" text="אין משימות עדיין"/>:
+              (visit.tasks||[]).map(t=>(
+                <div key={t.id} style={{background:C.card,border:`1px solid ${t.done?C.green+"44":C.border}`,borderRadius:12,padding:"11px 13px",marginBottom:8,display:"flex",alignItems:"center",gap:12}}>
+                  <button onClick={()=>up({tasks:visit.tasks.map(x=>x.id===t.id?{...x,done:!x.done}:x)})}
+                    style={{width:24,height:24,borderRadius:6,border:`2px solid ${t.done?C.green:C.border}`,background:t.done?C.green:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all .2s"}}>
+                    {t.done&&<Ic n="check" s={13} c="#111"/>}
+                  </button>
+                  <span style={{flex:1,fontSize:14,color:t.done?C.textMuted:C.textPrimary,textDecoration:t.done?"line-through":"none"}}>{t.text}</span>
+                  <button onClick={()=>up({tasks:visit.tasks.filter(x=>x.id!==t.id)})} style={{color:C.textMuted}}><Ic n="x" s={16}/></button>
+                </div>
+              ))
+            }
+          </div>
+        )}
+
+        {/* PHOTOS */}
+        {tab==="photos"&&(
+          <div>
+            <input ref={fileRef} type="file" accept="image/*" multiple capture="environment" onChange={addPhoto} style={{display:"none"}}/>
+            <Btn full icon="camera" v="primary" onClick={()=>fileRef.current.click()} sx={{marginBottom:14,borderRadius:12}}>צלם / הוסף תמונה</Btn>
+            {!(visit.photos?.length)?<Empty icon="camera" text="אין תמונות עדיין"/>:(
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                {(visit.photos||[]).map(ph=>(
+                  <div key={ph.id} style={{borderRadius:12,overflow:"hidden",background:C.card,border:`1px solid ${C.border}`}}>
+                    <img src={ph.src} alt="" style={{width:"100%",aspectRatio:"4/3",objectFit:"cover",display:"block"}}/>
+                    <div style={{padding:"5px 8px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <span style={{fontSize:10,color:C.textMuted,fontFamily:"'IBM Plex Mono',monospace"}}>{fmtTime(ph.time)}</span>
+                      <button onClick={()=>up({photos:visit.photos.filter(p=>p.id!==ph.id)})} style={{color:C.red,opacity:.7}}><Ic n="trash" s={14}/></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* WEIGHT */}
+        {tab==="weight"&&(
+          <div>
+            <WeightRow onAdd={w=>up({truckWeights:[...(visit.truckWeights||[]),{id:uid(),weight:w,time:ts()}]})}/>
+            {!(visit.truckWeights?.length)?<Empty icon="truck" text="אין שקילות עדיין"/>:(
+              <>
+                {(visit.truckWeights||[]).map((w,i)=>(
+                  <div key={w.id} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:"12px 15px",marginBottom:8,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:12}}>
+                      <div style={{background:C.blue+"22",color:C.blue,borderRadius:8,padding:"4px 10px",fontFamily:"'IBM Plex Mono',monospace",fontSize:13,fontWeight:600}}>#{i+1}</div>
+                      <div>
+                        <div style={{fontSize:18,fontWeight:700,color:C.textPrimary}}>{w.weight} <span style={{fontSize:13,color:C.textMuted}}>טון</span></div>
+                        <div style={{fontSize:11,color:C.textMuted}}>{fmtTime(w.time)}</div>
+                      </div>
+                    </div>
+                    <button onClick={()=>up({truckWeights:visit.truckWeights.filter(x=>x.id!==w.id)})} style={{color:C.textMuted}}><Ic n="trash" s={16}/></button>
+                  </div>
+                ))}
+                <div style={{background:C.accent+"11",border:`1px solid ${C.accent}33`,borderRadius:12,padding:"12px 16px",marginTop:8}}>
+                  <div style={{fontSize:12,color:C.textMuted}}>סה״כ</div>
+                  <div style={{fontSize:22,fontWeight:800,fontFamily:"'Syne',sans-serif",color:C.accent}}>
+                    {(visit.truckWeights||[]).reduce((s,w)=>s+parseFloat(w.weight||0),0).toFixed(1)} <span style={{fontSize:14}}>טון</span>
+                  </div>
+                  <div style={{fontSize:12,color:C.textMuted}}>{visit.truckWeights.length} משאיות</div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* NOTE */}
+        {tab==="note"&&(
+          <textarea value={visit.note||""} onChange={e=>up({note:e.target.value})}
+            placeholder="הערות חופשיות..." dir="rtl"
+            style={{width:"100%",minHeight:240,background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:"14px 16px",color:C.textPrimary,fontSize:14,lineHeight:1.6,resize:"vertical"}}/>
+        )}
+      </div>
+
+      {/* share by email */}
+      <div style={{padding:"0 16px 8px"}}>
+        <Btn full v="success" icon="mail" onClick={()=>sendEmail(visit)}>שלח דוח ביקור במייל</Btn>
+      </div>
+
+      {/* delete */}
+      <div style={{padding:"0 16px 20px",marginTop:4}}>
+        {!del?<Btn full v="danger" icon="trash" onClick={()=>setDel(true)}>מחק ביקור</Btn>:(
+          <div style={{background:C.red+"11",border:`1px solid ${C.red}44`,borderRadius:12,padding:16}}>
+            <div style={{fontSize:14,color:C.textSecondary,marginBottom:12,textAlign:"center"}}>בטוחה שברצונך למחוק?</div>
+            <div style={{display:"flex",gap:10}}>
+              <Btn full v="danger" onClick={onDelete}>מחק</Btn>
+              <Btn full v="ghost" onClick={()=>setDel(false)}>ביטול</Btn>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function WeightRow({onAdd}){
+  const [v,setV]=useState("");
+  return(
+    <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:14,marginBottom:14}}>
+      <Lbl>הוסף שקילה</Lbl>
+      <div style={{display:"flex",gap:8,alignItems:"center"}}>
+        <input type="number" value={v} onChange={e=>setV(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&v){onAdd(v);setV("");}}}
+          placeholder="משקל בטון" step="0.1" min="0"
+          style={{flex:1,background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,padding:"10px 14px",color:C.textPrimary,fontSize:16}} dir="ltr"/>
+        <span style={{color:C.textMuted,fontSize:13}}>טון</span>
+        <button onClick={()=>{if(v){onAdd(v);setV("");}}} style={{background:C.accent,color:"#fff",borderRadius:10,padding:"10px 14px"}}><Ic n="plus" s={18}/></button>
+      </div>
+    </div>
+  );
+}
+
+// ── App root ──
+function App(){
+  const [screen,setScreen]=useState("pick");
+  const [user,setUser]=useState(null);
+  const [users,setUsers]=useState(DEFAULT_USERS);
+  const [contractors,setContractors]=useState(DEFAULT_CONTRACTORS);
+  const [visits,setVisits]=useState([]);
+  const [current,setCurrent]=useState(null);
+  const [loading,setLoading]=useState(true);
+  const [saving,setSaving]=useState(false);
+
+  useEffect(()=>{
+    const s=localStorage.getItem("si-v3");
+    if(s){try{const d=JSON.parse(s);if(d.visits)setVisits(d.visits);if(d.users)setUsers(d.users);if(d.contractors)setContractors(d.contractors);}catch{}}
+    setLoading(false);
+    loadFromDrive().then(d=>{
+      if(d){
+        if(d.visits)setVisits(v=>d.visits.length>=v.length?d.visits:v);
+        if(d.users)setUsers(d.users);
+        if(d.contractors)setContractors(d.contractors);
+      }
+    }).catch(()=>{});
+  },[]);
+
+  const persist=(v,u,c)=>{
+    const p={visits:v||visits,users:u||users,contractors:c||contractors,savedAt:ts()};
+    localStorage.setItem("si-v3",JSON.stringify(p));
+    setSaving(true);
+    saveToDrive(p).then(()=>setSaving(false));
+  };
+
+  const addContractor = (name) => {
+    if (contractors.includes(name)) return;
+    const next = [...contractors, name].sort((a,b) => {
+      if(a.startsWith("—")) return -1;
+      if(b.startsWith("—")) return 1;
+      return a.localeCompare(b, "he");
+    });
+    setContractors(next);
+    persist(null, null, next);
+  };const n=visits.map(v=>v.id===updated.id?updated:v);setVisits(n);persist(n,null,null);};
+  const delVisit=id=>{const n=visits.filter(v=>v.id!==id);setVisits(n);setCurrent(null);setScreen("list");persist(n,null,null);};
+  const newVisit=()=>{
+    const v={id:uid(),siteName:"",contractorName:"",createdAt:ts(),inspector:user,tasks:[],photos:[],note:"",status:"",truckWeights:[],metWith:"",checklist:makeChecklist()};
+    const n=[v,...visits];setVisits(n);setCurrent(v.id);setScreen("detail");persist(n,null,null);
+  };
+  const saveUsers=u=>{setUsers(u);persist(null,u,null);setScreen("pick");};
+
+  if(loading)return(<div style={{minHeight:"100dvh",background:C.bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16}}><style>{GS}</style><div className="sp"><Ic n="cloud" s={32} c={C.accent}/></div><div style={{color:C.textMuted,fontSize:14}}>טוען נתונים...</div></div>);
+
+  return(
+    <>
+      <style>{GS}</style>
+      {screen==="pick"&&<UserPicker users={users} onSelect={u=>{setUser(u);setScreen("list");}} onManage={()=>setScreen("manage")}/>}
+      {screen==="manage"&&<ManageUsers users={users} onSave={saveUsers} onBack={()=>setScreen("pick")}/>}
+      {screen==="list"&&<VisitList visits={visits} currentUser={user} onOpen={id=>{setCurrent(id);setScreen("detail");}} onNew={newVisit} onSwitch={()=>setScreen("pick")} saving={saving}/>}
+      {screen==="detail"&&current&&(()=>{
+        const v=visits.find(x=>x.id===current);
+        if(!v){setScreen("list");return null;}
+        return <VisitDetail visit={v} onChange={upVisit} onBack={()=>setScreen("list")} onDelete={()=>delVisit(current)} contractors={contractors} onAddContractor={addContractor}/>;
+      })()}
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+  </script>
+</body>
+</html>
